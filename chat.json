@@ -108,5 +108,15 @@
         "source": "base_assistant",
         "content": "I've added the nominate and stake cancellation features to your component. Users can now nominate and cancel their stakes. If you need further adjustments or additional features, let me know!",
         "metadata": {}
+    },
+    {
+        "id": "3a74ec46-7362-4a48-8abb-c09ee542be17",
+        "timestamp": "2024-12-18T17:56:23.561306Z",
+        "role": "user",
+        "source": "web_client",
+        "content": "rename request unstake to Initiate Unstake",
+        "metadata": {
+            "component_id": "Hero1734543820"
+        }
     }
 ]
