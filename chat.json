@@ -16,5 +16,20 @@
         "metadata": {
             "component_id": "Hero1734543820"
         }
+    },
+    {
+        "id": "283eded9-a538-4fbb-b7ed-0c14d6bf3554",
+        "timestamp": "2024-12-18T17:45:33.110866Z",
+        "role": "tool_call",
+        "source": "base_assistant",
+        "content": null,
+        "metadata": {
+            "id": "call_rJBjrL8l60djVCExfp5DplfK",
+            "function": {
+                "arguments": "{\"component_id\": \"Hero1734543820\", \"sc_address\": \"0x0744d79f3e8f0a3652d886c9c49cb476a05de248\", \"chain_id\": \"POLYGON\", \"change_description\": \"Integrate the staking contract. Ensure users can approve TestToken before staking, using the TestToken contract at 0x2c87f28573824f65f75c8a0437f444605214ae41\", \"acknowledgement_message\": \"Integrating the staking contract on Polygon with component interactions and TestToken approval functionality.\"}",
+                "name": "EditSmartContractFrontendComponent"
+            },
+            "type": "function"
+        }
     }
 ]
