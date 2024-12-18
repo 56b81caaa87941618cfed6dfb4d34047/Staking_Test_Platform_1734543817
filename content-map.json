@@ -1,0 +1,23 @@
+{
+    "name": "example",
+    "prefix": "%#PLACEHOLDER",
+    "placeholderMappings": {
+        "Header": [
+            "APPLICATION_NAME"
+        ],
+        "Hero": [
+            "HERO_HEADING_TEXT",
+            "HERO_SUBHEADING_TEXT"
+        ],
+        "Footer": [
+            "APPLICATION_NAME",
+            "FOOTER_TEXT"
+        ]
+    },
+    "placeholders": {
+        "APPLICATION_NAME": "StakeLab",
+        "HERO_HEADING_TEXT": "Revolutionize Your Crypto Testing with StakeLab",
+        "HERO_SUBHEADING_TEXT": "Simulate, validate, and perfect your staking strategies in a risk-free environment",
+        "FOOTER_TEXT": "\u00a9 2023 StakeLab. Empowering smarter staking decisions through innovative testing."
+    }
+}
