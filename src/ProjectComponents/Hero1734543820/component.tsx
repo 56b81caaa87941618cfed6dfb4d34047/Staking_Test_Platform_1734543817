@@ -180,10 +180,10 @@ const StakingAndNominationComponent: React.FC = () => {
       const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
       const tx = await nodeOpsContract.unstake();
       await tx.wait();
-      setUnstakeStatus('Unstake requested successfully');
+      setUnstakeStatus('Unstake initiated successfully');
     } catch (error) {
       console.error("Failed to request unstake:", error);
-      setUnstakeStatus('Unstake request failed');
+      setUnstakeStatus('Unstake initiation failed');
     }
   };
 
@@ -265,10 +265,10 @@ const StakingAndNominationComponent: React.FC = () => {
           </button>
           <button
             onClick={unstake}
+            onClick={unstake}
             className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
           >
-            Request Unstake
-          </button>
+            Initiate Unstake
           <button
             onClick={cancelUnstake}
             className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
