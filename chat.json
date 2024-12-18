@@ -57,5 +57,15 @@
         "source": "base_assistant",
         "content": "The staking contract has been integrated into your component. Users will be able to approve TestToken before staking. What's the next action you'd like to take on your project?",
         "metadata": {}
+    },
+    {
+        "id": "87b0f565-deaa-411a-8340-793f46eada2e",
+        "timestamp": "2024-12-18T17:47:26.520325Z",
+        "role": "user",
+        "source": "web_client",
+        "content": "add nominate and stake cancelation features",
+        "metadata": {
+            "component_id": "Hero1734543820"
+        }
     }
 ]
