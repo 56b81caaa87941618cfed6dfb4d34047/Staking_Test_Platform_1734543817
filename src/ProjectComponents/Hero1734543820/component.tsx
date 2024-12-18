@@ -268,10 +268,12 @@ const StakingAndNominationComponent: React.FC = () => {
             className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
           >
             Initiate Unstake
-          </button>
+          <button
             onClick={cancelUnstake}
             className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
           >
+            Cancel Unstake
+          </button>
             Cancel Unstake
           </button>
           <button
