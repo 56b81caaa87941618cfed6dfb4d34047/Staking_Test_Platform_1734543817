@@ -1,9 +1,8 @@
 
 import React from 'react';
-import { ethers } from 'ethers';
-import * as ReactModal from 'react-modal';
+import * as ethers from 'ethers';
 
-const NodeOpsABI = [
+const nodeOpsABI = [
   {
     "name": "stake",
     "stateMutability": "nonpayable",
@@ -26,33 +25,34 @@ const NodeOpsABI = [
     "stateMutability": "nonpayable",
     "inputs": [
       {
-        "name": "node",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "amount",
-        "type": "uint248",
-        "internalType": "uint248"
+        "name": "nodes",
+        "type": "bytes32[]",
+        "internalType": "bytes32[]"
       }
     ],
     "outputs": []
   },
   {
-    "name": "cancelStake",
+    "name": "unstake",
     "stateMutability": "nonpayable",
-    "inputs": [
-      {
-        "name": "node",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "cancelUnstake",
+    "stateMutability": "nonpayable",
+    "inputs": [],
+    "outputs": []
+  },
+  {
+    "name": "requestProcessUnstake",
+    "stateMutability": "nonpayable",
+    "inputs": [],
     "outputs": []
   }
 ];
 
-const TestTokenABI = [
+const testTokenABI = [
   {
     "constant": false,
     "inputs": [
@@ -76,241 +76,221 @@ const TestTokenABI = [
   }
 ];
 
-const StakingComponent: React.FC = () => {
+const StakingAndNominationComponent: React.FC = () => {
   const [amount, setAmount] = React.useState('');
   const [nodes, setNodes] = React.useState('');
-  const [nominationNode, setNominationNode] = React.useState('');
-  const [nominationAmount, setNominationAmount] = React.useState('');
-  const [cancellationNode, setCancellationNode] = React.useState('');
-  const [status, setStatus] = React.useState('');
-  const [error, setError] = React.useState('');
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [modalContent, setModalContent] = React.useState('');
+  const [nominateNodes, setNominateNodes] = React.useState('');
+  const [approvalStatus, setApprovalStatus] = React.useState('Not approved');
+  const [stakingStatus, setStakingStatus] = React.useState('Not staked');
+  const [nominateStatus, setNominateStatus] = React.useState('Not nominated');
+  const [unstakeStatus, setUnstakeStatus] = React.useState('Not unstaked');
+  const [cancelUnstakeStatus, setCancelUnstakeStatus] = React.useState('Not cancelled');
+  const [requestProcessUnstakeStatus, setRequestProcessUnstakeStatus] = React.useState('Not requested');
+  const [provider, setProvider] = React.useState<ethers.providers.Web3Provider | null>(null);
+  const [signer, setSigner] = React.useState<ethers.Signer | null>(null);
 
   const nodeOpsAddress = '0x0744d79f3e8f0a3652d886c9c49cb476a05de248';
   const testTokenAddress = '0x2c87f28573824f65f75c8a0437f444605214ae41';
-  const requiredChainId = 137;
+  const chainId = 137;
+
+  React.useEffect(() => {
+    const initProvider = async () => {
+      if (window.ethereum) {
+        const web3Provider = new ethers.providers.Web3Provider(window.ethereum);
+        setProvider(web3Provider);
+        setSigner(web3Provider.getSigner());
+      }
+    };
+    initProvider();
+  }, []);
 
   const connectWallet = async () => {
-    try {
-      await (window as any).ethereum.request({ method: 'eth_requestAccounts' });
-      checkAndSwitchChain();
-    } catch (err) {
-      setError('Failed to connect wallet. Please try again.');
-    }
-  };
-
-  const checkAndSwitchChain = async () => {
-    const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-    const network = await provider.getNetwork();
-    if (network.chainId !== requiredChainId) {
+    if (provider) {
       try {
-        await (window as any).ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: ethers.utils.hexValue(requiredChainId) }],
-        });
-      } catch (err) {
-        setError(`Please switch to the Polygon network (Chain ID: ${requiredChainId})`);
+        await provider.send("eth_requestAccounts", []);
+        const network = await provider.getNetwork();
+        if (network.chainId !== chainId) {
+          await window.ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: ethers.utils.hexValue(chainId) }],
+          });
+        }
+      } catch (error) {
+        console.error("Failed to connect wallet:", error);
       }
     }
   };
 
-  const approveToken = async () => {
-    try {
+  const approveTokens = async () => {
+    if (!signer) {
       await connectWallet();
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const testToken = new ethers.Contract(testTokenAddress, TestTokenABI, signer);
-      const tx = await testToken.approve(nodeOpsAddress, ethers.constants.MaxUint256);
-      setStatus('Approving TestToken...');
+      return;
+    }
+    try {
+      const testTokenContract = new ethers.Contract(testTokenAddress, testTokenABI, signer);
+      const tx = await testTokenContract.approve(nodeOpsAddress, ethers.utils.parseEther(amount));
       await tx.wait();
-      setStatus('TestToken approved successfully');
-    } catch (err) {
-      setError('Failed to approve TestToken. Please try again.');
+      setApprovalStatus('Approved');
+    } catch (error) {
+      console.error("Failed to approve tokens:", error);
+      setApprovalStatus('Approval failed');
     }
   };
 
   const stake = async () => {
-    try {
+    if (!signer) {
       await connectWallet();
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const nodeOps = new ethers.Contract(nodeOpsAddress, NodeOpsABI, signer);
-      
-      const nodeArray = nodes.split(',').map(node => ethers.utils.formatBytes32String(node.trim()));
-      const amountInWei = ethers.utils.parseEther(amount);
-      
-      const tx = await nodeOps.stake(nodeArray, amountInWei);
-      setStatus('Staking in progress...');
-      await tx.wait();
-      setStatus('Staking successful');
-    } catch (err) {
-      setError('Failed to stake. Please make sure you have approved TestToken and have sufficient balance.');
+      return;
     }
+    try {
+      const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
+      const nodeArray = nodes.split(',').map(node => ethers.utils.formatBytes32String(node.trim()));
+      const tx = await nodeOpsContract.stake(nodeArray, ethers.utils.parseUnits(amount, 18));
+      await tx.wait();
+      setStakingStatus('Staked successfully');
+    } catch (error) {
+      console.error("Failed to stake:", error);
+      setStakingStatus('Staking failed');
     }
   };
 
   const nominate = async () => {
-    try {
+    if (!signer) {
       await connectWallet();
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const nodeOps = new ethers.Contract(nodeOpsAddress, NodeOpsABI, signer);
-      
-      const nodeBytes32 = ethers.utils.formatBytes32String(nominationNode.trim());
-      const amountInWei = ethers.utils.parseEther(nominationAmount);
-      
-      const tx = await nodeOps.nominate(nodeBytes32, amountInWei);
-      setStatus('Nomination in progress...');
+      return;
+    }
+    try {
+      const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
+      const nodeArray = nominateNodes.split(',').map(node => ethers.utils.formatBytes32String(node.trim()));
+      const tx = await nodeOpsContract.nominate(nodeArray);
       await tx.wait();
-      setModalContent('Nomination successful');
-      setIsModalOpen(true);
-    } catch (err) {
-      setError('Failed to nominate. Please try again.');
+      setNominateStatus('Nominated successfully');
+    } catch (error) {
+      console.error("Failed to nominate:", error);
+      setNominateStatus('Nomination failed');
     }
   };
 
-  const cancelStake = async () => {
-    try {
+  const unstake = async () => {
+    if (!signer) {
       await connectWallet();
-      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
-      const signer = provider.getSigner();
-      const nodeOps = new ethers.Contract(nodeOpsAddress, NodeOpsABI, signer);
-      
-      const nodeBytes32 = ethers.utils.formatBytes32String(cancellationNode.trim());
-      
-      const tx = await nodeOps.cancelStake(nodeBytes32);
-      setStatus('Stake cancellation in progress...');
+      return;
+    }
+    try {
+      const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
+      const tx = await nodeOpsContract.unstake();
       await tx.wait();
-      setModalContent('Stake cancellation successful');
-      setIsModalOpen(true);
-    } catch (err) {
-      setError('Failed to cancel stake. Please try again.');
+      setUnstakeStatus('Unstake requested successfully');
+    } catch (error) {
+      console.error("Failed to request unstake:", error);
+      setUnstakeStatus('Unstake request failed');
+    }
+  };
+
+  const cancelUnstake = async () => {
+    if (!signer) {
+      await connectWallet();
+      return;
+    }
+    try {
+      const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
+      const tx = await nodeOpsContract.cancelUnstake();
+      await tx.wait();
+      setCancelUnstakeStatus('Unstake cancelled successfully');
+    } catch (error) {
+      console.error("Failed to cancel unstake:", error);
+      setCancelUnstakeStatus('Cancel unstake failed');
+    }
+  };
+
+  const requestProcessUnstake = async () => {
+    if (!signer) {
+      await connectWallet();
+      return;
+    }
+    try {
+      const nodeOpsContract = new ethers.Contract(nodeOpsAddress, nodeOpsABI, signer);
+      const tx = await nodeOpsContract.requestProcessUnstake();
+      await tx.wait();
+      setRequestProcessUnstakeStatus('Process unstake requested successfully');
+    } catch (error) {
+      console.error("Failed to request process unstake:", error);
+      setRequestProcessUnstakeStatus('Request process unstake failed');
     }
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-5">
-      <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 className="text-2xl font-bold mb-4">Stake Tokens</h1>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="amount">
-            Amount to Stake
-          </label>
+    <div className="bg-black py-16 text-white w-full h-full">
+      <div className="container mx-auto px-4 flex flex-col items-center h-full">
+        <h1 className="text-4xl font-bold mb-8">Stake, Nominate, and Manage Your TestTokens</h1>
+        <div className="w-full max-w-md">
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="amount"
             type="text"
-            placeholder="Enter amount"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
+            placeholder="Amount to stake"
+            className="w-full p-2 mb-4 text-black rounded-lg"
           />
-        </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nodes">
-            Nodes (comma-separated)
-          </label>
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="nodes"
             type="text"
-            placeholder="Enter nodes"
             value={nodes}
             onChange={(e) => setNodes(e.target.value)}
+            placeholder="Node addresses for staking (comma-separated)"
+            className="w-full p-2 mb-4 text-black rounded-lg"
           />
-        </div>
-        <div className="flex flex-col space-y-4">
           <button
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-            onClick={approveToken}
+            onClick={approveTokens}
+            className="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
           >
-            Approve TestToken
+            Approve TestTokens
           </button>
           <button
-            className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
             onClick={stake}
+            className="w-full bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
           >
             Stake
           </button>
-        </div>
-
-        <h2 className="text-xl font-bold mt-8 mb-4">Nominate</h2>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nominationNode">
-            Node to Nominate
-          </label>
           <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="nominationNode"
             type="text"
-            placeholder="Enter node"
-            value={nominationNode}
-            onChange={(e) => setNominationNode(e.target.value)}
+            value={nominateNodes}
+            onChange={(e) => setNominateNodes(e.target.value)}
+            placeholder="Node addresses for nomination (comma-separated)"
+            className="w-full p-2 mb-4 text-black rounded-lg"
           />
+          <button
+            onClick={nominate}
+            className="w-full bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
+          >
+            Nominate
+          </button>
+          <button
+            onClick={unstake}
+            className="w-full bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
+          >
+            Request Unstake
+          </button>
+          <button
+            onClick={cancelUnstake}
+            className="w-full bg-yellow-500 hover:bg-yellow-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
+          >
+            Cancel Unstake
+          </button>
+          <button
+            onClick={requestProcessUnstake}
+            className="w-full bg-indigo-500 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg mb-4"
+          >
+            Request Process Unstake
+          </button>
+          <p className="text-center mb-2">Approval Status: {approvalStatus}</p>
+          <p className="text-center mb-2">Staking Status: {stakingStatus}</p>
+          <p className="text-center mb-2">Nomination Status: {nominateStatus}</p>
+          <p className="text-center mb-2">Unstake Status: {unstakeStatus}</p>
+          <p className="text-center mb-2">Cancel Unstake Status: {cancelUnstakeStatus}</p>
+          <p className="text-center">Request Process Unstake Status: {requestProcessUnstakeStatus}</p>
         </div>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nominationAmount">
-            Amount to Nominate
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="nominationAmount"
-            type="text"
-            placeholder="Enter amount"
-            value={nominationAmount}
-            onChange={(e) => setNominationAmount(e.target.value)}
-          />
-        </div>
-        <button
-          className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          onClick={nominate}
-        >
-          Nominate
-        </button>
-
-        <h2 className="text-xl font-bold mt-8 mb-4">Cancel Stake</h2>
-        <div className="mb-4">
-          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="cancellationNode">
-            Node to Cancel Stake
-          </label>
-          <input
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            id="cancellationNode"
-            type="text"
-            placeholder="Enter node"
-            value={cancellationNode}
-            onChange={(e) => setCancellationNode(e.target.value)}
-          />
-        </div>
-        <button
-          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          onClick={cancelStake}
-        >
-          Cancel Stake
-        </button>
-
-        {status && <p className="mt-4 text-green-600">{status}</p>}
-        {error && <p className="mt-4 text-red-600">{error}</p>}
       </div>
-
-      <ReactModal.default
-        isOpen={isModalOpen}
-        onRequestClose={() => setIsModalOpen(false)}
-        contentLabel="Operation Result"
-        className="bg-white rounded-lg p-6 max-w-sm mx-auto mt-20"
-        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
-      >
-        <h2 className="text-xl font-bold mb-4">Operation Result</h2>
-        <p>{modalContent}</p>
-        <button
-          className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          onClick={() => setIsModalOpen(false)}
-        >
-          Close
-        </button>
-      </ReactModal.default>
     </div>
   );
 };
 
-export { StakingComponent as component };
+export { StakingAndNominationComponent as component };
