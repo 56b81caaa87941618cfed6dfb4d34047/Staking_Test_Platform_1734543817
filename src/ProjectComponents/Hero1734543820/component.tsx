@@ -1,6 +1,7 @@
 
 import React from 'react';
-import * as ethers from 'ethers';
+import { ethers } from 'ethers';
+import * as ReactModal from 'react-modal';
 
 const NodeOpsABI = [
   {
@@ -16,6 +17,35 @@ const NodeOpsABI = [
         "name": "amount",
         "type": "uint248",
         "internalType": "uint248"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "nominate",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {
+        "name": "node",
+        "type": "bytes32",
+        "internalType": "bytes32"
+      },
+      {
+        "name": "amount",
+        "type": "uint248",
+        "internalType": "uint248"
+      }
+    ],
+    "outputs": []
+  },
+  {
+    "name": "cancelStake",
+    "stateMutability": "nonpayable",
+    "inputs": [
+      {
+        "name": "node",
+        "type": "bytes32",
+        "internalType": "bytes32"
       }
     ],
     "outputs": []
@@ -48,9 +78,15 @@ const TestTokenABI = [
 
 const StakingComponent: React.FC = () => {
   const [amount, setAmount] = React.useState('');
+  const [amount, setAmount] = React.useState('');
   const [nodes, setNodes] = React.useState('');
+  const [nominationNode, setNominationNode] = React.useState('');
+  const [nominationAmount, setNominationAmount] = React.useState('');
+  const [cancellationNode, setCancellationNode] = React.useState('');
   const [status, setStatus] = React.useState('');
   const [error, setError] = React.useState('');
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [modalContent, setModalContent] = React.useState('');
 
   const nodeOpsAddress = '0x0744d79f3e8f0a3652d886c9c49cb476a05de248';
   const testTokenAddress = '0x2c87f28573824f65f75c8a0437f444605214ae41';
@@ -112,6 +148,46 @@ const StakingComponent: React.FC = () => {
     } catch (err) {
       setError('Failed to stake. Please make sure you have approved TestToken and have sufficient balance.');
     }
+    }
+  };
+
+  const nominate = async () => {
+    try {
+      await connectWallet();
+      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
+      const signer = provider.getSigner();
+      const nodeOps = new ethers.Contract(nodeOpsAddress, NodeOpsABI, signer);
+      
+      const nodeBytes32 = ethers.utils.formatBytes32String(nominationNode.trim());
+      const amountInWei = ethers.utils.parseEther(nominationAmount);
+      
+      const tx = await nodeOps.nominate(nodeBytes32, amountInWei);
+      setStatus('Nomination in progress...');
+      await tx.wait();
+      setModalContent('Nomination successful');
+      setIsModalOpen(true);
+    } catch (err) {
+      setError('Failed to nominate. Please try again.');
+    }
+  };
+
+  const cancelStake = async () => {
+    try {
+      await connectWallet();
+      const provider = new ethers.providers.Web3Provider((window as any).ethereum);
+      const signer = provider.getSigner();
+      const nodeOps = new ethers.Contract(nodeOpsAddress, NodeOpsABI, signer);
+      
+      const nodeBytes32 = ethers.utils.formatBytes32String(cancellationNode.trim());
+      
+      const tx = await nodeOps.cancelStake(nodeBytes32);
+      setStatus('Stake cancellation in progress...');
+      await tx.wait();
+      setModalContent('Stake cancellation successful');
+      setIsModalOpen(true);
+    } catch (err) {
+      setError('Failed to cancel stake. Please try again.');
+    }
   };
 
   return (
@@ -158,11 +234,87 @@ const StakingComponent: React.FC = () => {
             Stake
           </button>
         </div>
+
+        <h2 className="text-xl font-bold mt-8 mb-4">Nominate</h2>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nominationNode">
+            Node to Nominate
+          </label>
+          <input
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            id="nominationNode"
+            type="text"
+            placeholder="Enter node"
+            value={nominationNode}
+            onChange={(e) => setNominationNode(e.target.value)}
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="nominationAmount">
+            Amount to Nominate
+          </label>
+          <input
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            id="nominationAmount"
+            type="text"
+            placeholder="Enter amount"
+            value={nominationAmount}
+            onChange={(e) => setNominationAmount(e.target.value)}
+          />
+        </div>
+        <button
+          className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          onClick={nominate}
+        >
+          Nominate
+        </button>
+
+        <h2 className="text-xl font-bold mt-8 mb-4">Cancel Stake</h2>
+        <div className="mb-4">
+          <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="cancellationNode">
+            Node to Cancel Stake
+          </label>
+          <input
+            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
+            id="cancellationNode"
+            type="text"
+            placeholder="Enter node"
+            value={cancellationNode}
+            onChange={(e) => setCancellationNode(e.target.value)}
+          />
+        </div>
+        <button
+          className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          onClick={cancelStake}
+        >
+          Cancel Stake
+        </button>
+
         {status && <p className="mt-4 text-green-600">{status}</p>}
         {error && <p className="mt-4 text-red-600">{error}</p>}
       </div>
+
+      <ReactModal.default
+        isOpen={isModalOpen}
+        onRequestClose={() => setIsModalOpen(false)}
+        contentLabel="Operation Result"
+        className="bg-white rounded-lg p-6 max-w-sm mx-auto mt-20"
+        overlayClassName="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+      >
+        <h2 className="text-xl font-bold mb-4">Operation Result</h2>
+        <p>{modalContent}</p>
+        <button
+          className="mt-4 bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          onClick={() => setIsModalOpen(false)}
+        >
+          Close
+        </button>
+      </ReactModal.default>
     </div>
   );
+};
+
+export { StakingComponent as component };
 };
 
 export { StakingComponent as component };
