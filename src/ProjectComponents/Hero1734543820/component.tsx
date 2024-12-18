@@ -78,7 +78,6 @@ const TestTokenABI = [
 
 const StakingComponent: React.FC = () => {
   const [amount, setAmount] = React.useState('');
-  const [amount, setAmount] = React.useState('');
   const [nodes, setNodes] = React.useState('');
   const [nominationNode, setNominationNode] = React.useState('');
   const [nominationAmount, setNominationAmount] = React.useState('');
