@@ -314,6 +314,3 @@ const StakingComponent: React.FC = () => {
 };
 
 export { StakingComponent as component };
-};
-
-export { StakingComponent as component };
